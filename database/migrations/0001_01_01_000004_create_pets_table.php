@@ -11,17 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        
         Schema::create('pets', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('cliente_id')
+                ->constrained('clientes')
+                ->cascadeOnDelete();
             $table->string('nome');
             $table->string('raca', 30);
             $table->date('data_nascimento');
             $table->string('genero', 2);
-            $table->boolean('castracao')->default(false);
+            $table->boolean('castrado')->default(false);
             $table->timestamps();
         });
-
     }
 
     /**

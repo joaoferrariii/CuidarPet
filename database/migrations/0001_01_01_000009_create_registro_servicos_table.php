@@ -23,12 +23,12 @@ return new class extends Migration
                 ->restrictOnDelete();
 
             $table->date('data');
-            $table->timestamps();
 
             $table->foreignId('forma_pagamento_id')
-            ->constrained('formas_pagamento');
-        });
+                ->constrained('formas_pagamento');
 
+            $table->timestamps();
+        });
     }
 
     /**
@@ -36,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('registro_servicos');
+        Schema::dropIfExists('registros_servicos');
     }
 };
