@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RegistroServico extends Model
 {
-    protected $table = 'registro_servicos';
+    use HasFactory;
+
+    protected $table = 'registros_servicos';
 
     protected $fillable = [
-        'animal_id',
+        'pet_id',
         'servico_id',
         'forma_pagamento_id',
         'data'
@@ -23,9 +26,9 @@ class RegistroServico extends Model
         ];
     }
 
-    public function animal(): BelongsTo
+    public function pet(): BelongsTo
     {
-        return $this->belongsTo(Animal::class);
+        return $this->belongsTo(Pet::class);
     }
 
     public function servico(): BelongsTo

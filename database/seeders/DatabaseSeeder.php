@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,11 +14,37 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // 1. Papéis de acesso (Admin e Funcionário)
+        $this->call(RoleSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // 2. Tabelas auxiliares
+        $this->call(FormaPagamentoSeeder::class);
+        $this->call(VacinaSeeder::class);
+        $this->call(ServicoSeeder::class);
+
+        // 3. Usuários do sistema
+        $adminRole = Role::where('nome', 'Admin')->first();
+        $funcionarioRole = Role::where('nome', 'Funcionário')->first();
+
+        User::firstOrCreate(
+            ['email' => 'admin@cuidarpet.com'],
+            [
+                'name' => 'Administrador CuidarPet',
+                'password' => Hash::make('password'),
+                'role_id' => $adminRole?->id,
+            ]
+        );
+
+        User::firstOrCreate(
+            ['email' => 'funcionario@cuidarpet.com'],
+            [
+                'name' => 'Funcionário CuidarPet',
+                'password' => Hash::make('password'),
+                'role_id' => $funcionarioRole?->id,
+            ]
+        );
+
+        // 4. Clientes, Pets, Vacinas aplicadas e Registros de Serviço
+        $this->call(ClinicaSeeder::class);
     }
 }
