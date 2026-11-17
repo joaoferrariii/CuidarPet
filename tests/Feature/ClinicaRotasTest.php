@@ -42,7 +42,7 @@ describe('Módulo de Clientes', function () {
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Clientes/Index')
+                ->component('Clientes/Index', false)
                 ->has('clientes.data', 1)
                 ->where('clientes.data.0.nome', 'Ana Clara Silveira')
             );
@@ -170,7 +170,7 @@ describe('Módulo de Pets', function () {
 
         $response->assertStatus(200)
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Pets/Show')
+                ->component('Pets/Show', false)
                 ->where('pet.nome', 'Luna')
                 ->where('pet.cliente.nome', 'Tutor Teste')
             );
