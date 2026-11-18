@@ -22,8 +22,8 @@ class Vacinacao extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'date',
-            'validade' => 'date'
+            'data' => 'date:d/m/Y',
+            'validade' => 'date:d/m/Y'
         ];
     }
 

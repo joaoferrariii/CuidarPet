@@ -22,7 +22,7 @@ class RegistroServico extends Model
     protected function casts(): array
     {
         return [
-            'data' => 'date'
+            'data' => 'date:d/m/Y'
         ];
     }
 
