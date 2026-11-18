@@ -21,17 +21,17 @@ defineProps<Props>();
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
-            <Link class="block w-full" :href="route('profile.edit')" as="button">
+            <Link class="block w-full cursor-pointer" :href="route('profile.edit')" as="button">
                 <Settings class="mr-2 h-4 w-4" />
-                Settings
+                Configurações
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>
     <DropdownMenuSeparator />
     <DropdownMenuItem :as-child="true">
-        <Link class="block w-full" method="post" :href="route('logout')" as="button">
+        <Link class="block w-full cursor-pointer text-red-600 dark:text-red-400" method="post" :href="route('logout')" as="button">
             <LogOut class="mr-2 h-4 w-4" />
-            Log out
+            Sair
         </Link>
     </DropdownMenuItem>
 </template>

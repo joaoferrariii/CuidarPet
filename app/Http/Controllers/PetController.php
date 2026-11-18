@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\PetRequest;
 use App\Models\Cliente;
+use App\Models\FormaPagamento;
 use App\Models\Pet;
+use App\Models\Servico;
+use App\Models\Vacina;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -66,6 +69,9 @@ class PetController extends Controller
 
         return Inertia::render('Pets/Show', [
             'pet' => $pet,
+            'vacinas' => Vacina::select('id', 'descricao')->orderBy('descricao')->get(),
+            'servicos' => Servico::select('id', 'descricao')->orderBy('descricao')->get(),
+            'formasPagamento' => FormaPagamento::select('id', 'descricao')->orderBy('descricao')->get(),
         ]);
     }
 

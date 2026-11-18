@@ -21,13 +21,13 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Confirm your password" description="This is a secure area of the application. Please confirm your password before continuing.">
-        <Head title="Confirm password" />
+    <AuthLayout title="Confirme sua senha" description="Esta é uma área segura do sistema. Por favor, confirme sua senha antes de continuar.">
+        <Head title="Confirmar senha" />
 
         <form @submit.prevent="submit">
             <div class="space-y-6">
                 <div class="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label for="password">Senha</Label>
                     <Input
                         id="password"
                         type="password"
@@ -36,15 +36,16 @@ const submit = () => {
                         required
                         autocomplete="current-password"
                         autofocus
+                        placeholder="Digite sua senha"
                     />
 
                     <InputError :message="form.errors.password" />
                 </div>
 
                 <div class="flex items-center">
-                    <Button class="w-full" :disabled="form.processing">
+                    <Button class="w-full bg-[#176B87] hover:bg-[#125369] text-white" :disabled="form.processing">
                         <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
-                        Confirm Password
+                        Confirmar senha
                     </Button>
                 </div>
             </div>
