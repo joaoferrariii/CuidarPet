@@ -18,11 +18,9 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     Activity,
     ArrowLeft,
-    Calendar,
     Clock,
     CreditCard,
     FileText,
-    PawPrint,
     Plus,
     Printer,
     ShieldCheck,

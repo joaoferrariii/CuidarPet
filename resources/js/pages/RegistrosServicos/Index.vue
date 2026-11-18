@@ -6,7 +6,7 @@ import type { BreadcrumbItem, PaginatedData, RegistroServico } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ClipboardList, Plus, Trash2 } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
     registros: PaginatedData<RegistroServico>;
 }>();
 

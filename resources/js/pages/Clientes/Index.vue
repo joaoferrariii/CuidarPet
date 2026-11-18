@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Cliente, PaginatedData } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { PawPrint, Plus, Search, Trash2, UserPlus, Users } from 'lucide-vue-next';
+import { PawPrint, Search, Trash2, UserPlus, Users } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 const props = defineProps<{

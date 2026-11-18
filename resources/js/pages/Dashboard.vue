@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import {
-    Activity,
     ClipboardList,
-    FileText,
     PawPrint,
     Plus,
-    ShieldCheck,
     Syringe,
     Users,
 } from 'lucide-vue-next';

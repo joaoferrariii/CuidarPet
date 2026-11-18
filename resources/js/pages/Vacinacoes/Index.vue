@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, PaginatedData, Vacinacao } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, ShieldCheck, Syringe, Trash2 } from 'lucide-vue-next';
+import { Plus, Syringe, Trash2 } from 'lucide-vue-next';
 
-const props = defineProps<{
+defineProps<{
     vacinacoes: PaginatedData<Vacinacao>;
 }>();
 

@@ -14,8 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Cliente } from '@/types';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Calendar, FileText, PawPrint, Plus, User } from 'lucide-vue-next';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeft, FileText, PawPrint, Plus, User } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 const props = defineProps<{
