@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, FormaPagamento, Servico } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, ClipboardList } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle2, ClipboardList } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 const props = defineProps<{
     pets: Array<{ id: number; nome: string; cliente?: { id: number; nome: string } }>;
@@ -21,15 +30,36 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Novo Atendimento', href: '/registros-servicos/create' },
 ];
 
+const isConfirmOpen = ref(false);
+
 const form = useForm({
     pet_id: props.pet_id || (props.pets.length > 0 ? props.pets[0].id : ''),
     servico_id: props.servicos.length > 0 ? props.servicos[0].id : '',
     forma_pagamento_id: props.formasPagamento.length > 0 ? props.formasPagamento[0].id : '',
-    data: new Date().toISOString().split('T')[0],
+    data_registro: new Date().toISOString().split('T')[0],
 });
 
-function submit() {
-    form.post('/registros-servicos');
+function requestSubmit() {
+    form.clearErrors();
+    if (!form.pet_id || !form.servico_id || !form.forma_pagamento_id || !form.data_registro) return;
+    isConfirmOpen.value = true;
+}
+
+function confirmSubmit() {
+    form.transform((data) => ({
+        pet_id: data.pet_id,
+        servico_id: data.servico_id,
+        forma_pagamento_id: data.forma_pagamento_id,
+        data: data.data_registro,
+    })).post('/registros-servicos', {
+        preserveScroll: true,
+        onSuccess: () => {
+            isConfirmOpen.value = false;
+        },
+        onError: () => {
+            isConfirmOpen.value = false;
+        },
+    });
 }
 </script>
 
@@ -61,7 +91,7 @@ function submit() {
                 </CardHeader>
 
                 <CardContent class="pt-6">
-                    <form @submit.prevent="submit" class="space-y-4">
+                    <form @submit.prevent="requestSubmit" class="space-y-4">
                         <div class="space-y-1.5">
                             <Label for="pet_id" class="text-xs font-semibold">Paciente (Pet) *</Label>
                             <select
@@ -75,7 +105,7 @@ function submit() {
                                     {{ pet.nome }} (Tutor: {{ pet.cliente?.nome || 'N/A' }})
                                 </option>
                             </select>
-                            <span v-if="form.errors.pet_id" class="text-[11px] text-destructive">{{ form.errors.pet_id }}</span>
+                            <span v-if="form.errors.pet_id" class="text-[11px] text-destructive font-medium">{{ form.errors.pet_id }}</span>
                         </div>
 
                         <div class="space-y-1.5">
@@ -91,14 +121,14 @@ function submit() {
                                     {{ s.descricao }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.servico_id" class="text-[11px] text-destructive">{{ form.errors.servico_id }}</span>
+                            <span v-if="form.errors.servico_id" class="text-[11px] text-destructive font-medium">{{ form.errors.servico_id }}</span>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-1.5">
                                 <Label for="data" class="text-xs font-semibold">Data do Atendimento *</Label>
-                                <Input id="data" type="date" v-model="form.data" required class="text-xs rounded-xl" />
-                                <span v-if="form.errors.data" class="text-[11px] text-destructive">{{ form.errors.data }}</span>
+                                <Input id="data" type="date" v-model="form.data_registro" required class="text-xs rounded-xl" />
+                                <span v-if="form.errors.data" class="text-[11px] text-destructive font-medium">{{ form.errors.data }}</span>
                             </div>
 
                             <div class="space-y-1.5">
@@ -114,7 +144,7 @@ function submit() {
                                         {{ fp.descricao }}
                                     </option>
                                 </select>
-                                <span v-if="form.errors.forma_pagamento_id" class="text-[11px] text-destructive">{{ form.errors.forma_pagamento_id }}</span>
+                                <span v-if="form.errors.forma_pagamento_id" class="text-[11px] text-destructive font-medium">{{ form.errors.forma_pagamento_id }}</span>
                             </div>
                         </div>
 
@@ -122,7 +152,7 @@ function submit() {
                             <Link href="/registros-servicos">
                                 <Button type="button" variant="outline" class="text-xs rounded-xl">Cancelar</Button>
                             </Link>
-                            <Button type="submit" :disabled="form.processing" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs font-bold rounded-xl px-5">
+                            <Button type="submit" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs font-bold rounded-xl px-5">
                                 Concluir Atendimento
                             </Button>
                         </div>
@@ -130,5 +160,26 @@ function submit() {
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Pop-up de Confirmação de Cadastro -->
+        <Dialog v-model:open="isConfirmOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                        <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                        Confirmar Atendimento
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Confirma o registro deste procedimento clínico no prontuário do paciente?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isConfirmOpen = false" :disabled="form.processing" class="text-xs rounded-xl">Voltar</Button>
+                    <Button @click="confirmSubmit" :disabled="form.processing" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs rounded-xl font-bold">
+                        {{ form.processing ? 'Gravando no Banco...' : 'Sim, Registrar' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

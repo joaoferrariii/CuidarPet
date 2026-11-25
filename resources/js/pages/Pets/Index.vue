@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, PaginatedData, Pet } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { FileText, PawPrint, Plus, Search, Trash2, User } from 'lucide-vue-next';
+import { AlertCircle, FileText, PawPrint, Plus, Search, Trash2, User } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -20,14 +28,37 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const search = ref(props.filters.search || '');
 
+// Estado de exclusão com pop-up
+const isDeleteOpen = ref(false);
+const isDeleting = ref(false);
+const deleteTarget = ref<{ id: number; nome: string } | null>(null);
+
 function handleSearch() {
     router.get('/pets', { search: search.value }, { preserveState: true, replace: true });
 }
 
-function deletePet(id: number, nome: string) {
-    if (confirm(`Deseja realmente remover o pet "${nome}" do sistema?`)) {
-        router.delete(`/pets/${id}`);
-    }
+function goToPage(page: number) {
+    router.get('/pets', { search: search.value, page }, { preserveState: true, replace: true });
+}
+
+function requestDeletePet(id: number, nome: string) {
+    deleteTarget.value = { id, nome };
+    isDeleteOpen.value = true;
+}
+
+function confirmDeletePet() {
+    if (!deleteTarget.value) return;
+    isDeleting.value = true;
+    router.delete(`/pets/${deleteTarget.value.id}`, {
+        onSuccess: () => {
+            isDeleteOpen.value = false;
+            deleteTarget.value = null;
+            isDeleting.value = false;
+        },
+        onError: () => {
+            isDeleting.value = false;
+        },
+    });
 }
 </script>
 
@@ -117,7 +148,7 @@ function deletePet(id: number, nome: string) {
 
                         <div class="pt-2 border-t border-border/60 flex items-center justify-between">
                             <Button
-                                @click="deletePet(pet.id, pet.nome)"
+                                @click="requestDeletePet(pet.id, pet.nome)"
                                 variant="ghost"
                                 size="sm"
                                 class="text-xs h-7 text-destructive hover:bg-destructive/10 rounded-lg p-1.5"
@@ -139,6 +170,56 @@ function deletePet(id: number, nome: string) {
                     Nenhum paciente encontrado para a busca.
                 </div>
             </div>
+
+            <!-- Paginação -->
+            <div v-if="pets.last_page > 1" class="flex items-center justify-between px-5 py-3 border rounded-2xl bg-muted/10">
+                <span class="text-[11px] text-muted-foreground">
+                    Página {{ pets.current_page }} de {{ pets.last_page }} ({{ pets.total }} pacientes)
+                </span>
+                <div class="flex items-center gap-1.5">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-xs h-8 rounded-lg"
+                        :disabled="pets.current_page <= 1"
+                        @click="goToPage(pets.current_page - 1)"
+                    >
+                        Anterior
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-xs h-8 rounded-lg"
+                        :disabled="pets.current_page >= pets.last_page"
+                        @click="goToPage(pets.current_page + 1)"
+                    >
+                        Próxima
+                    </Button>
+                </div>
+            </div>
         </div>
+
+        <!-- Pop-up de Confirmação de Exclusão -->
+        <Dialog v-model:open="isDeleteOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-destructive flex items-center gap-2">
+                        <AlertCircle class="h-5 w-5" />
+                        Confirmar Exclusão do Pet
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Deseja realmente remover o pet <strong>"{{ deleteTarget?.nome }}"</strong>? Todo o prontuário, vacinas e atendimentos deste paciente serão excluídos permanentemente.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isDeleteOpen = false" class="text-xs rounded-xl">
+                        Cancelar
+                    </Button>
+                    <Button @click="confirmDeletePet" :disabled="isDeleting" class="bg-destructive hover:bg-destructive/90 text-white text-xs rounded-xl font-bold">
+                        {{ isDeleting ? 'Removendo...' : 'Sim, Excluir' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

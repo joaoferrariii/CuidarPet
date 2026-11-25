@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegistroServicoRequest;
 use App\Models\FormaPagamento;
 use App\Models\Pet;
 use App\Models\RegistroServico;
@@ -45,21 +46,9 @@ class RegistroServicoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(RegistroServicoRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'pet_id' => ['required', 'exists:pets,id'],
-            'servico_id' => ['required', 'exists:servicos,id'],
-            'forma_pagamento_id' => ['required', 'exists:formas_pagamento,id'],
-            'data' => ['required', 'date'],
-        ], [
-            'pet_id.required' => 'Selecione o pet.',
-            'servico_id.required' => 'Selecione o serviço realizado.',
-            'forma_pagamento_id.required' => 'Selecione a forma de pagamento.',
-            'data.required' => 'Informe a data do atendimento.',
-        ]);
-
-        $registro = RegistroServico::create($validated);
+        $registro = RegistroServico::create($request->validated());
 
         return redirect()->route('pets.show', $registro->pet_id)
             ->with('success', 'Atendimento/serviço registrado com sucesso!');

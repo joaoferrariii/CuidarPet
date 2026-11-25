@@ -16,6 +16,18 @@ class ClienteRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->cpf) {
+            $this->merge([
+                'cpf' => preg_replace('/\D/', '', $this->cpf),
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -29,7 +41,7 @@ class ClienteRequest extends FormRequest
             'cpf' => [
                 'required',
                 'string',
-                'max:14',
+                'size:11',
                 Rule::unique('clientes', 'cpf')->ignore($clienteId),
             ],
             'email' => [

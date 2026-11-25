@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, Cliente } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, FileText, PawPrint, Plus, User } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle2, FileText, PawPrint, Plus, User } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -29,6 +29,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const isAddPetOpen = ref(false);
+const isConfirmStep = ref(false);
 
 const petForm = useForm({
     cliente_id: props.cliente.id,
@@ -39,12 +40,32 @@ const petForm = useForm({
     castrado: false,
 });
 
-function submitAddPet() {
+function openAddPetModal() {
+    isConfirmStep.value = false;
+    petForm.clearErrors();
+    isAddPetOpen.value = true;
+}
+
+function requestAddPet() {
+    if (!petForm.nome || !petForm.raca || !petForm.data_nascimento) return;
+    isConfirmStep.value = true;
+}
+
+function cancelConfirm() {
+    isConfirmStep.value = false;
+}
+
+function executeAddPet() {
     petForm.post('/pets', {
+        preserveScroll: true,
         onSuccess: () => {
             isAddPetOpen.value = false;
+            isConfirmStep.value = false;
             petForm.reset();
             petForm.cliente_id = props.cliente.id;
+        },
+        onError: () => {
+            isConfirmStep.value = false;
         },
     });
 }
@@ -62,65 +83,117 @@ function submitAddPet() {
                     <span>Voltar para Lista de Tutores</span>
                 </Link>
 
-                <!-- Modal Cadastrar Pet para este Cliente -->
+                <!-- Modal Cadastrar Pet para este Cliente com Confirmação Integrada -->
                 <Dialog v-model:open="isAddPetOpen">
                     <DialogTrigger as-child>
-                        <Button class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs h-9 rounded-xl font-semibold gap-1.5">
+                        <Button @click="openAddPetModal" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs h-9 rounded-xl font-semibold gap-1.5">
                             <Plus class="h-4 w-4" />
                             <span>Vincular Novo Pet</span>
                         </Button>
                     </DialogTrigger>
                     <DialogContent class="sm:max-w-md rounded-2xl">
-                        <DialogHeader>
-                            <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Cadastrar Animal de Estimação</DialogTitle>
-                            <DialogDescription class="text-xs">
-                                Novo pet para o tutor: <strong>{{ cliente.nome }}</strong>.
-                            </DialogDescription>
-                        </DialogHeader>
+                        <!-- ETAPA 1: Formulário -->
+                        <div v-if="!isConfirmStep">
+                            <DialogHeader>
+                                <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Cadastrar Animal de Estimação</DialogTitle>
+                                <DialogDescription class="text-xs">
+                                    Novo pet para o tutor: <strong>{{ cliente.nome }}</strong>.
+                                </DialogDescription>
+                            </DialogHeader>
 
-                        <form @submit.prevent="submitAddPet" class="space-y-3.5 py-2">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="space-y-1">
-                                    <Label for="petNome" class="text-xs font-semibold">Nome do Pet *</Label>
-                                    <Input id="petNome" v-model="petForm.nome" placeholder="Ex: Thor, Mel..." required class="text-xs rounded-xl" />
-                                    <span v-if="petForm.errors.nome" class="text-[11px] text-destructive">{{ petForm.errors.nome }}</span>
+                            <form @submit.prevent="requestAddPet" class="space-y-3.5 py-2">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="space-y-1">
+                                        <Label for="petNome" class="text-xs font-semibold">Nome do Pet *</Label>
+                                        <Input id="petNome" v-model="petForm.nome" placeholder="Ex: Thor, Mel..." required class="text-xs rounded-xl" />
+                                        <span v-if="petForm.errors.nome" class="text-[11px] text-destructive font-medium">{{ petForm.errors.nome }}</span>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <Label for="petRaca" class="text-xs font-semibold">Raça / Espécie *</Label>
+                                        <Input id="petRaca" v-model="petForm.raca" placeholder="Ex: Golden, Siamês..." required class="text-xs rounded-xl" />
+                                        <span v-if="petForm.errors.raca" class="text-[11px] text-destructive font-medium">{{ petForm.errors.raca }}</span>
+                                    </div>
                                 </div>
-                                <div class="space-y-1">
-                                    <Label for="petRaca" class="text-xs font-semibold">Raça / Espécie *</Label>
-                                    <Input id="petRaca" v-model="petForm.raca" placeholder="Ex: Golden, Siamês..." required class="text-xs rounded-xl" />
-                                    <span v-if="petForm.errors.raca" class="text-[11px] text-destructive">{{ petForm.errors.raca }}</span>
+
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="space-y-1">
+                                        <Label for="dataNasc" class="text-xs font-semibold">Nascimento *</Label>
+                                        <Input id="dataNasc" type="date" v-model="petForm.data_nascimento" required class="text-xs rounded-xl" />
+                                        <span v-if="petForm.errors.data_nascimento" class="text-[11px] text-destructive font-medium">{{ petForm.errors.data_nascimento }}</span>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <Label for="genero" class="text-xs font-semibold">Gênero *</Label>
+                                        <select id="genero" v-model="petForm.genero" class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
+                                            <option value="M">Macho</option>
+                                            <option value="F">Fêmea</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <Label for="castrado" class="text-xs font-semibold">Castrado? *</Label>
+                                        <select id="castrado" v-model="petForm.castrado" class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
+                                            <option :value="true">Sim</option>
+                                            <option :value="false">Não</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <DialogFooter class="pt-3">
+                                    <Button type="button" variant="outline" @click="isAddPetOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                                    <Button type="submit" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
+                                        Salvar Pet
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </div>
+
+                        <!-- ETAPA 2: Confirmação -->
+                        <div v-else class="py-2 space-y-4">
+                            <DialogHeader>
+                                <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                                    <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                                    Confirmar Cadastro do Animal
+                                </DialogTitle>
+                                <DialogDescription class="text-xs">
+                                    Deseja confirmar a inclusão do animal no prontuário do tutor <strong>{{ cliente.nome }}</strong>?
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div class="bg-muted/40 p-3.5 rounded-xl border border-border/70 space-y-2 text-xs">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Nome do Animal:</span>
+                                        <strong class="text-foreground">{{ petForm.nome }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Raça / Espécie:</span>
+                                        <strong>{{ petForm.raca }}</strong>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Nascimento:</span>
+                                        <strong>{{ petForm.data_nascimento }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Gênero:</span>
+                                        <strong>{{ petForm.genero === 'M' ? 'Macho' : 'Fêmea' }}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Castrado:</span>
+                                        <strong>{{ petForm.castrado ? 'Sim' : 'Não' }}</strong>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="space-y-1">
-                                    <Label for="dataNasc" class="text-xs font-semibold">Nascimento *</Label>
-                                    <Input id="dataNasc" type="date" v-model="petForm.data_nascimento" required class="text-xs rounded-xl" />
-                                    <span v-if="petForm.errors.data_nascimento" class="text-[11px] text-destructive">{{ petForm.errors.data_nascimento }}</span>
-                                </div>
-                                <div class="space-y-1">
-                                    <Label for="genero" class="text-xs font-semibold">Gênero *</Label>
-                                    <select id="genero" v-model="petForm.genero" class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
-                                        <option value="M">Macho</option>
-                                        <option value="F">Fêmea</option>
-                                    </select>
-                                </div>
-                                <div class="space-y-1">
-                                    <Label for="castrado" class="text-xs font-semibold">Castrado? *</Label>
-                                    <select id="castrado" v-model="petForm.castrado" class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
-                                        <option :value="true">Sim</option>
-                                        <option :value="false">Não</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <DialogFooter class="pt-3">
-                                <Button type="button" variant="outline" @click="isAddPetOpen = false" class="text-xs rounded-xl">Cancelar</Button>
-                                <Button type="submit" :disabled="petForm.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
-                                    Salvar Pet
+                            <DialogFooter class="pt-2">
+                                <Button type="button" variant="outline" @click="cancelConfirm" :disabled="petForm.processing" class="text-xs rounded-xl">
+                                    Voltar / Editar
+                                </Button>
+                                <Button @click="executeAddPet" :disabled="petForm.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
+                                    {{ petForm.processing ? 'Gravando no Banco...' : 'Sim, Cadastrar Pet' }}
                                 </Button>
                             </DialogFooter>
-                        </form>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Syringe } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle2, Syringe } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 const props = defineProps<{
     pets: Array<{ id: number; nome: string; cliente?: { id: number; nome: string } }>;
@@ -20,15 +29,36 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Nova Aplicação', href: '/vacinacoes/create' },
 ];
 
+const isConfirmOpen = ref(false);
+
 const form = useForm({
     pet_id: props.pet_id || (props.pets.length > 0 ? props.pets[0].id : ''),
     vacina_id: props.vacinas.length > 0 ? props.vacinas[0].id : '',
-    data: new Date().toISOString().split('T')[0],
+    data_aplicacao: new Date().toISOString().split('T')[0],
     validade: '',
 });
 
-function submit() {
-    form.post('/vacinacoes');
+function requestSubmit() {
+    form.clearErrors();
+    if (!form.pet_id || !form.vacina_id || !form.data_aplicacao) return;
+    isConfirmOpen.value = true;
+}
+
+function confirmSubmit() {
+    form.transform((data) => ({
+        pet_id: data.pet_id,
+        vacina_id: data.vacina_id,
+        data: data.data_aplicacao,
+        validade: data.validade || null,
+    })).post('/vacinacoes', {
+        preserveScroll: true,
+        onSuccess: () => {
+            isConfirmOpen.value = false;
+        },
+        onError: () => {
+            isConfirmOpen.value = false;
+        },
+    });
 }
 </script>
 
@@ -60,7 +90,7 @@ function submit() {
                 </CardHeader>
 
                 <CardContent class="pt-6">
-                    <form @submit.prevent="submit" class="space-y-4">
+                    <form @submit.prevent="requestSubmit" class="space-y-4">
                         <div class="space-y-1.5">
                             <Label for="pet_id" class="text-xs font-semibold">Paciente (Pet) *</Label>
                             <select
@@ -74,7 +104,7 @@ function submit() {
                                     {{ pet.nome }} (Tutor: {{ pet.cliente?.nome || 'N/A' }})
                                 </option>
                             </select>
-                            <span v-if="form.errors.pet_id" class="text-[11px] text-destructive">{{ form.errors.pet_id }}</span>
+                            <span v-if="form.errors.pet_id" class="text-[11px] text-destructive font-medium">{{ form.errors.pet_id }}</span>
                         </div>
 
                         <div class="space-y-1.5">
@@ -90,20 +120,20 @@ function submit() {
                                     {{ vac.descricao }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.vacina_id" class="text-[11px] text-destructive">{{ form.errors.vacina_id }}</span>
+                            <span v-if="form.errors.vacina_id" class="text-[11px] text-destructive font-medium">{{ form.errors.vacina_id }}</span>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-1.5">
                                 <Label for="data" class="text-xs font-semibold">Data da Aplicação *</Label>
-                                <Input id="data" type="date" v-model="form.data" required class="text-xs rounded-xl" />
-                                <span v-if="form.errors.data" class="text-[11px] text-destructive">{{ form.errors.data }}</span>
+                                <Input id="data" type="date" v-model="form.data_aplicacao" required class="text-xs rounded-xl" />
+                                <span v-if="form.errors.data" class="text-[11px] text-destructive font-medium">{{ form.errors.data }}</span>
                             </div>
 
                             <div class="space-y-1.5">
                                 <Label for="validade" class="text-xs font-semibold">Validade / Próximo Reforço</Label>
                                 <Input id="validade" type="date" v-model="form.validade" class="text-xs rounded-xl" />
-                                <span v-if="form.errors.validade" class="text-[11px] text-destructive">{{ form.errors.validade }}</span>
+                                <span v-if="form.errors.validade" class="text-[11px] text-destructive font-medium">{{ form.errors.validade }}</span>
                             </div>
                         </div>
 
@@ -111,7 +141,7 @@ function submit() {
                             <Link href="/vacinacoes">
                                 <Button type="button" variant="outline" class="text-xs rounded-xl">Cancelar</Button>
                             </Link>
-                            <Button type="submit" :disabled="form.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl px-5">
+                            <Button type="submit" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl px-5">
                                 Salvar Vacinação
                             </Button>
                         </div>
@@ -119,5 +149,26 @@ function submit() {
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Pop-up de Confirmação de Cadastro -->
+        <Dialog v-model:open="isConfirmOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                        <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                        Confirmar Vacinação
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Confirma o registro desta vacinação para a data indicada? A carteira de saúde do paciente será atualizada.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isConfirmOpen = false" :disabled="form.processing" class="text-xs rounded-xl">Voltar</Button>
+                    <Button @click="confirmSubmit" :disabled="form.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
+                        {{ form.processing ? 'Gravando no Banco...' : 'Sim, Gravar' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, PaginatedData, RegistroServico } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ClipboardList, Plus, Trash2 } from 'lucide-vue-next';
+import { AlertCircle, ClipboardList, Plus, Trash2 } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 defineProps<{
     registros: PaginatedData<RegistroServico>;
@@ -15,10 +24,32 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Atendimentos & Serviços', href: '/registros-servicos' },
 ];
 
-function deleteRegistro(id: number) {
-    if (confirm('Deseja realmente remover este registro de atendimento?')) {
-        router.delete(`/registros-servicos/${id}`);
-    }
+const isDeleteOpen = ref(false);
+const isDeleting = ref(false);
+const deleteTarget = ref<{ id: number; servicoNome: string; petNome: string } | null>(null);
+
+function requestDeleteRegistro(id: number, servicoNome: string, petNome: string) {
+    deleteTarget.value = { id, servicoNome, petNome };
+    isDeleteOpen.value = true;
+}
+
+function confirmDeleteRegistro() {
+    if (!deleteTarget.value) return;
+    isDeleting.value = true;
+    router.delete(`/registros-servicos/${deleteTarget.value.id}`, {
+        onSuccess: () => {
+            isDeleteOpen.value = false;
+            deleteTarget.value = null;
+            isDeleting.value = false;
+        },
+        onError: () => {
+            isDeleting.value = false;
+        },
+    });
+}
+
+function goToPage(page: number) {
+    router.get('/registros-servicos', { page }, { preserveState: true, replace: true });
 }
 </script>
 
@@ -91,7 +122,7 @@ function deleteRegistro(id: number) {
                                         </span>
                                     </td>
                                     <td class="py-3.5 px-5 text-right">
-                                        <Button @click="deleteRegistro(reg.id)" variant="ghost" size="sm" class="text-xs h-7 text-destructive hover:bg-destructive/10 rounded-lg p-1.5">
+                                        <Button @click="requestDeleteRegistro(reg.id, reg.servico?.descricao || 'Serviço', reg.pet?.nome || 'Pet')" variant="ghost" size="sm" class="text-xs h-7 text-destructive hover:bg-destructive/10 rounded-lg p-1.5">
                                             <Trash2 class="h-3.5 w-3.5" />
                                         </Button>
                                     </td>
@@ -104,8 +135,56 @@ function deleteRegistro(id: number) {
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Paginação -->
+                    <div v-if="registros.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border/60 bg-muted/10">
+                        <span class="text-[11px] text-muted-foreground">
+                            Página {{ registros.current_page }} de {{ registros.last_page }} ({{ registros.total }} atendimentos)
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="text-xs h-8 rounded-lg"
+                                :disabled="registros.current_page <= 1"
+                                @click="goToPage(registros.current_page - 1)"
+                            >
+                                Anterior
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="text-xs h-8 rounded-lg"
+                                :disabled="registros.current_page >= registros.last_page"
+                                @click="goToPage(registros.current_page + 1)"
+                            >
+                                Próxima
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Pop-up de Confirmação de Exclusão -->
+        <Dialog v-model:open="isDeleteOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-destructive flex items-center gap-2">
+                        <AlertCircle class="h-5 w-5" />
+                        Confirmar Exclusão de Atendimento
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Deseja realmente remover o registro do procedimento <strong>"{{ deleteTarget?.servicoNome }}"</strong> do pet <strong>"{{ deleteTarget?.petNome }}"</strong>?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isDeleteOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                    <Button @click="confirmDeleteRegistro" :disabled="isDeleting" class="bg-destructive hover:bg-destructive/90 text-white text-xs rounded-xl font-bold">
+                        {{ isDeleting ? 'Removendo...' : 'Sim, Excluir' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

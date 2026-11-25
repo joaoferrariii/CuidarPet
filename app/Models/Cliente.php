@@ -45,7 +45,8 @@ class Cliente extends Model
                     return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $digits);
                 }
                 return $value;
-            }
+            },
+            set: fn (?string $value) => $value ? preg_replace('/\D/', '', $value) : null
         );
     }
 }

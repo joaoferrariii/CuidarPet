@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, PawPrint } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle2, PawPrint } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 const props = defineProps<{
     clientes: Array<{ id: number; nome: string; cpf: string }>;
@@ -19,6 +28,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Novo Pet', href: '/pets/create' },
 ];
 
+const isConfirmOpen = ref(false);
+
 const form = useForm({
     cliente_id: props.cliente_id || (props.clientes.length > 0 ? props.clientes[0].id : ''),
     nome: '',
@@ -28,8 +39,22 @@ const form = useForm({
     castrado: false,
 });
 
-function submit() {
-    form.post('/pets');
+function requestSubmit() {
+    form.clearErrors();
+    if (!form.cliente_id || !form.nome || !form.raca || !form.data_nascimento) return;
+    isConfirmOpen.value = true;
+}
+
+function confirmSubmit() {
+    form.post('/pets', {
+        preserveScroll: true,
+        onSuccess: () => {
+            isConfirmOpen.value = false;
+        },
+        onError: () => {
+            isConfirmOpen.value = false;
+        },
+    });
 }
 </script>
 
@@ -61,7 +86,7 @@ function submit() {
                 </CardHeader>
 
                 <CardContent class="pt-6">
-                    <form @submit.prevent="submit" class="space-y-4">
+                    <form @submit.prevent="requestSubmit" class="space-y-4">
                         <div class="space-y-1.5">
                             <Label for="cliente_id" class="text-xs font-semibold">Tutor Responsável *</Label>
                             <select
@@ -75,20 +100,20 @@ function submit() {
                                     {{ cliente.nome }} (CPF: {{ cliente.cpf }})
                                 </option>
                             </select>
-                            <span v-if="form.errors.cliente_id" class="text-[11px] text-destructive">{{ form.errors.cliente_id }}</span>
+                            <span v-if="form.errors.cliente_id" class="text-[11px] text-destructive font-medium">{{ form.errors.cliente_id }}</span>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div class="space-y-1.5">
                                 <Label for="nome" class="text-xs font-semibold">Nome do Animal *</Label>
                                 <Input id="nome" v-model="form.nome" placeholder="Ex: Bob, Thor, Nina..." required class="text-xs rounded-xl" />
-                                <span v-if="form.errors.nome" class="text-[11px] text-destructive">{{ form.errors.nome }}</span>
+                                <span v-if="form.errors.nome" class="text-[11px] text-destructive font-medium">{{ form.errors.nome }}</span>
                             </div>
 
                             <div class="space-y-1.5">
                                 <Label for="raca" class="text-xs font-semibold">Raça / Espécie *</Label>
                                 <Input id="raca" v-model="form.raca" placeholder="Ex: Golden, Poodle, SRD, Siamês..." required class="text-xs rounded-xl" />
-                                <span v-if="form.errors.raca" class="text-[11px] text-destructive">{{ form.errors.raca }}</span>
+                                <span v-if="form.errors.raca" class="text-[11px] text-destructive font-medium">{{ form.errors.raca }}</span>
                             </div>
                         </div>
 
@@ -96,7 +121,7 @@ function submit() {
                             <div class="space-y-1.5">
                                 <Label for="data_nascimento" class="text-xs font-semibold">Data de Nascimento *</Label>
                                 <Input id="data_nascimento" type="date" v-model="form.data_nascimento" required class="text-xs rounded-xl" />
-                                <span v-if="form.errors.data_nascimento" class="text-[11px] text-destructive">{{ form.errors.data_nascimento }}</span>
+                                <span v-if="form.errors.data_nascimento" class="text-[11px] text-destructive font-medium">{{ form.errors.data_nascimento }}</span>
                             </div>
 
                             <div class="space-y-1.5">
@@ -105,7 +130,7 @@ function submit() {
                                     <option value="M">Macho</option>
                                     <option value="F">Fêmea</option>
                                 </select>
-                                <span v-if="form.errors.genero" class="text-[11px] text-destructive">{{ form.errors.genero }}</span>
+                                <span v-if="form.errors.genero" class="text-[11px] text-destructive font-medium">{{ form.errors.genero }}</span>
                             </div>
 
                             <div class="space-y-1.5">
@@ -121,13 +146,34 @@ function submit() {
                             <Link href="/pets">
                                 <Button type="button" variant="outline" class="text-xs rounded-xl">Cancelar</Button>
                             </Link>
-                            <Button type="submit" :disabled="form.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl px-5">
-                                Cadastrar Paciente
+                            <Button type="submit" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl px-5">
+                                Salvar Animal
                             </Button>
                         </div>
                     </form>
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Pop-up de Confirmação de Cadastro -->
+        <Dialog v-model:open="isConfirmOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                        <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                        Confirmar Cadastro do Paciente
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Confirma o cadastro do animal <strong>"{{ form.nome }}"</strong>? Os dados ficarão disponíveis no prontuário clínico.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isConfirmOpen = false" :disabled="form.processing" class="text-xs rounded-xl">Voltar</Button>
+                    <Button @click="confirmSubmit" :disabled="form.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
+                        {{ form.processing ? 'Gravando no Banco...' : 'Sim, Cadastrar' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>

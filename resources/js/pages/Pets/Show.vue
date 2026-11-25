@@ -17,7 +17,9 @@ import type { BreadcrumbItem, FormaPagamento, Pet, Servico, Vacina } from '@/typ
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import {
     Activity,
+    AlertCircle,
     ArrowLeft,
+    CheckCircle2,
     Clock,
     CreditCard,
     FileText,
@@ -28,7 +30,7 @@ import {
     Trash2,
     User,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     pet: Pet;
@@ -43,58 +45,185 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.pet.nome, href: `/pets/${props.pet.id}` },
 ];
 
+// Modais e etapas
 const isAddServicoOpen = ref(false);
-const isAddVacinaOpen = ref(false);
+const isConfirmServicoStep = ref(false);
 
-// Form for registering service
+const isAddVacinaOpen = ref(false);
+const isConfirmVacinaStep = ref(false);
+
+// Exclusão de serviço
+const isDeleteServicoOpen = ref(false);
+const isDeletingServico = ref(false);
+const deleteServicoTargetId = ref<number | null>(null);
+
+// Exclusão de vacina
+const isDeleteVacinaOpen = ref(false);
+const isDeletingVacina = ref(false);
+const deleteVacinaTargetId = ref<number | null>(null);
+
+// Formulário de atendimento (usando data_registro para não colidir com form.data() reservado do Inertia)
 const servicoForm = useForm({
     pet_id: props.pet.id,
     servico_id: '',
     forma_pagamento_id: '',
-    data: new Date().toISOString().split('T')[0],
+    data_registro: new Date().toISOString().split('T')[0],
 });
 
-function submitServico() {
-    servicoForm.post('/registros-servicos', {
+const selectedServicoNome = computed(() => {
+    return props.servicos?.find(s => s.id === Number(servicoForm.servico_id))?.descricao || 'Procedimento';
+});
+
+const selectedFormaPagamentoNome = computed(() => {
+    return props.formasPagamento?.find(f => f.id === Number(servicoForm.forma_pagamento_id))?.descricao || 'Forma de Pgto';
+});
+
+function openAddServicoModal() {
+    isConfirmServicoStep.value = false;
+    servicoForm.clearErrors();
+    isAddServicoOpen.value = true;
+}
+
+function requestSubmitServico() {
+    if (!servicoForm.servico_id || !servicoForm.forma_pagamento_id || !servicoForm.data_registro) return;
+    isConfirmServicoStep.value = true;
+}
+
+function executeSubmitServico() {
+    servicoForm.transform((data) => ({
+        pet_id: data.pet_id,
+        servico_id: data.servico_id,
+        forma_pagamento_id: data.forma_pagamento_id,
+        data: data.data_registro,
+    })).post('/registros-servicos', {
+        preserveScroll: true,
         onSuccess: () => {
             isAddServicoOpen.value = false;
+            isConfirmServicoStep.value = false;
             servicoForm.reset('servico_id', 'forma_pagamento_id');
+        },
+        onError: () => {
+            isConfirmServicoStep.value = false;
         },
     });
 }
 
-// Form for registering vaccination
+// Formulário de vacinação (usando data_aplicacao para não colidir com form.data() reservado do Inertia)
 const vacinaForm = useForm({
     pet_id: props.pet.id,
     vacina_id: '',
-    data: new Date().toISOString().split('T')[0],
+    data_aplicacao: new Date().toISOString().split('T')[0],
     validade: '',
 });
 
-function submitVacina() {
-    vacinaForm.post('/vacinacoes', {
+const selectedVacinaNome = computed(() => {
+    return props.vacinas?.find(v => v.id === Number(vacinaForm.vacina_id))?.descricao || 'Vacina';
+});
+
+function openAddVacinaModal() {
+    isConfirmVacinaStep.value = false;
+    vacinaForm.clearErrors();
+    isAddVacinaOpen.value = true;
+}
+
+function requestSubmitVacina() {
+    if (!vacinaForm.vacina_id || !vacinaForm.data_aplicacao) return;
+    isConfirmVacinaStep.value = true;
+}
+
+function executeSubmitVacina() {
+    vacinaForm.transform((data) => ({
+        pet_id: data.pet_id,
+        vacina_id: data.vacina_id,
+        data: data.data_aplicacao,
+        validade: data.validade || null,
+    })).post('/vacinacoes', {
+        preserveScroll: true,
         onSuccess: () => {
             isAddVacinaOpen.value = false;
+            isConfirmVacinaStep.value = false;
             vacinaForm.reset('vacina_id', 'validade');
+        },
+        onError: () => {
+            isConfirmVacinaStep.value = false;
         },
     });
 }
 
-function deleteServico(id: number) {
-    if (confirm('Deseja remover este registro de serviço?')) {
-        router.delete(`/registros-servicos/${id}`);
-    }
+// Exclusão de serviço
+function requestDeleteServico(id: number) {
+    deleteServicoTargetId.value = id;
+    isDeleteServicoOpen.value = true;
 }
 
-function deleteVacina(id: number) {
-    if (confirm('Deseja remover esta vacinação?')) {
-        router.delete(`/vacinacoes/${id}`);
-    }
+function confirmDeleteServico() {
+    if (!deleteServicoTargetId.value) return;
+    isDeletingServico.value = true;
+    router.delete(`/registros-servicos/${deleteServicoTargetId.value}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isDeleteServicoOpen.value = false;
+            deleteServicoTargetId.value = null;
+            isDeletingServico.value = false;
+        },
+        onError: () => {
+            isDeletingServico.value = false;
+        },
+    });
+}
+
+// Exclusão de vacina
+function requestDeleteVacina(id: number) {
+    deleteVacinaTargetId.value = id;
+    isDeleteVacinaOpen.value = true;
+}
+
+function confirmDeleteVacina() {
+    if (!deleteVacinaTargetId.value) return;
+    isDeletingVacina.value = true;
+    router.delete(`/vacinacoes/${deleteVacinaTargetId.value}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isDeleteVacinaOpen.value = false;
+            deleteVacinaTargetId.value = null;
+            isDeletingVacina.value = false;
+        },
+        onError: () => {
+            isDeletingVacina.value = false;
+        },
+    });
 }
 
 function isValida(validadeDate: string | null): boolean {
     if (!validadeDate) return true;
-    return new Date(validadeDate) >= new Date();
+
+    let targetDate: Date;
+    if (validadeDate.includes('/')) {
+        const parts = validadeDate.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            targetDate = new Date(year, month, day, 23, 59, 59, 999);
+        } else {
+            targetDate = new Date(validadeDate);
+        }
+    } else if (validadeDate.includes('-')) {
+        const parts = validadeDate.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            targetDate = new Date(year, month, day, 23, 59, 59, 999);
+        } else {
+            targetDate = new Date(validadeDate);
+        }
+    } else {
+        targetDate = new Date(validadeDate);
+    }
+
+    if (isNaN(targetDate.getTime())) return false;
+    return targetDate >= new Date();
 }
 
 function printProntuario() {
@@ -115,7 +244,7 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6 print:p-0">
-            <!-- Cabeçalho Exclusivo para Impressão / PDF (Apenas Print) -->
+            <!-- Cabeçalho Exclusivo para Impressão -->
             <div class="hidden print:block mb-4 border-b-2 border-[#176B87] pb-3">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -139,7 +268,7 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                 </div>
             </div>
 
-            <!-- Back and Actions Top Bar (Oculto na Impressão) -->
+            <!-- Back and Actions Top Bar -->
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print print:hidden">
                 <Link href="/pets" class="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#176B87] dark:hover:text-[#A8DCCF] transition">
                     <ArrowLeft class="h-4 w-4" />
@@ -150,98 +279,185 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                     <!-- Modal Registrar Atendimento -->
                     <Dialog v-model:open="isAddServicoOpen">
                         <DialogTrigger as-child>
-                            <Button class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs h-9 rounded-xl font-semibold gap-1.5 shadow-sm">
+                            <Button @click="openAddServicoModal" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs h-9 rounded-xl font-semibold gap-1.5 shadow-sm">
                                 <Plus class="h-4 w-4" />
                                 <span>Lançar Atendimento</span>
                             </Button>
                         </DialogTrigger>
                         <DialogContent class="sm:max-w-md rounded-2xl">
-                            <DialogHeader>
-                                <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Registrar Atendimento</DialogTitle>
-                                <DialogDescription class="text-xs">
-                                    Lançar consulta, cirurgia, banho ou procedimento para <strong>{{ pet.nome }}</strong>.
-                                </DialogDescription>
-                            </DialogHeader>
+                            <!-- ETAPA 1: Formulário -->
+                            <div v-if="!isConfirmServicoStep">
+                                <DialogHeader>
+                                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Registrar Atendimento</DialogTitle>
+                                    <DialogDescription class="text-xs">
+                                        Lançar consulta, cirurgia, banho ou procedimento para <strong>{{ pet.nome }}</strong>.
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                            <form @submit.prevent="submitServico" class="space-y-3.5 py-2">
-                                <div class="space-y-1">
-                                    <Label class="text-xs font-semibold">Serviço Realizado *</Label>
-                                    <select v-model="servicoForm.servico_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
-                                        <option disabled value="">Selecione o serviço</option>
-                                        <option v-for="s in servicos" :key="s.id" :value="s.id">{{ s.descricao }}</option>
-                                    </select>
-                                    <span v-if="servicoForm.errors.servico_id" class="text-[11px] text-destructive">{{ servicoForm.errors.servico_id }}</span>
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-3">
+                                <form @submit.prevent="requestSubmitServico" class="space-y-3.5 py-2">
                                     <div class="space-y-1">
-                                        <Label class="text-xs font-semibold">Data do Atendimento *</Label>
-                                        <Input type="date" v-model="servicoForm.data" required class="text-xs rounded-xl" />
-                                        <span v-if="servicoForm.errors.data" class="text-[11px] text-destructive">{{ servicoForm.errors.data }}</span>
-                                    </div>
-                                    <div class="space-y-1">
-                                        <Label class="text-xs font-semibold">Forma de Pagamento *</Label>
-                                        <select v-model="servicoForm.forma_pagamento_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
-                                            <option disabled value="">Forma de pgto</option>
-                                            <option v-for="fp in formasPagamento" :key="fp.id" :value="fp.id">{{ fp.descricao }}</option>
+                                        <Label class="text-xs font-semibold">Serviço Realizado *</Label>
+                                        <select v-model="servicoForm.servico_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
+                                            <option disabled value="">Selecione o serviço</option>
+                                            <option v-for="s in servicos" :key="s.id" :value="s.id">{{ s.descricao }}</option>
                                         </select>
-                                        <span v-if="servicoForm.errors.forma_pagamento_id" class="text-[11px] text-destructive">{{ servicoForm.errors.forma_pagamento_id }}</span>
+                                        <span v-if="servicoForm.errors.servico_id" class="text-[11px] text-destructive font-medium">{{ servicoForm.errors.servico_id }}</span>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="space-y-1">
+                                            <Label class="text-xs font-semibold">Data do Atendimento *</Label>
+                                            <Input type="date" v-model="servicoForm.data_registro" required class="text-xs rounded-xl" />
+                                            <span v-if="servicoForm.errors.data" class="text-[11px] text-destructive font-medium">{{ servicoForm.errors.data }}</span>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <Label class="text-xs font-semibold">Forma de Pagamento *</Label>
+                                            <select v-model="servicoForm.forma_pagamento_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
+                                                <option disabled value="">Forma de pgto</option>
+                                                <option v-for="fp in formasPagamento" :key="fp.id" :value="fp.id">{{ fp.descricao }}</option>
+                                            </select>
+                                            <span v-if="servicoForm.errors.forma_pagamento_id" class="text-[11px] text-destructive font-medium">{{ servicoForm.errors.forma_pagamento_id }}</span>
+                                        </div>
+                                    </div>
+
+                                    <DialogFooter class="pt-3">
+                                        <Button type="button" variant="outline" @click="isAddServicoOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                                        <Button type="submit" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl">
+                                            Lançar Procedimento
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </div>
+
+                            <!-- ETAPA 2: Confirmação -->
+                            <div v-else class="py-2 space-y-4">
+                                <DialogHeader>
+                                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                                        <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                                        Confirmar Atendimento Clínico
+                                    </DialogTitle>
+                                    <DialogDescription class="text-xs">
+                                        Confirma o registro deste atendimento para o paciente <strong>{{ pet.nome }}</strong>?
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div class="bg-muted/40 p-3.5 rounded-xl border border-border/70 space-y-2 text-xs">
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Procedimento:</span>
+                                        <strong class="text-foreground">{{ selectedServicoNome }}</strong>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Data:</span>
+                                            <strong>{{ servicoForm.data_registro }}</strong>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Forma de Pagamento:</span>
+                                            <strong>{{ selectedFormaPagamentoNome }}</strong>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <DialogFooter class="pt-3">
-                                    <Button type="button" variant="outline" @click="isAddServicoOpen = false" class="text-xs rounded-xl">Cancelar</Button>
-                                    <Button type="submit" :disabled="servicoForm.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs font-bold rounded-xl">
-                                        Gravar no Prontuário
+                                <DialogFooter class="pt-2">
+                                    <Button type="button" variant="outline" @click="isConfirmServicoStep = false" :disabled="servicoForm.processing" class="text-xs rounded-xl">
+                                        Voltar / Editar
+                                    </Button>
+                                    <Button @click="executeSubmitServico" :disabled="servicoForm.processing" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs rounded-xl font-bold">
+                                        {{ servicoForm.processing ? 'Gravando no Prontuário...' : 'Sim, Gravar Atendimento' }}
                                     </Button>
                                 </DialogFooter>
-                            </form>
+                            </div>
                         </DialogContent>
                     </Dialog>
 
                     <!-- Modal Aplicar Vacina -->
                     <Dialog v-model:open="isAddVacinaOpen">
                         <DialogTrigger as-child>
-                            <Button class="bg-[#176B87] hover:bg-[#125368] text-white text-xs h-9 rounded-xl font-semibold gap-1.5 shadow-sm">
+                            <Button @click="openAddVacinaModal" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs h-9 rounded-xl font-semibold gap-1.5 shadow-sm">
                                 <Syringe class="h-4 w-4" />
                                 <span>Aplicar Vacina</span>
                             </Button>
                         </DialogTrigger>
                         <DialogContent class="sm:max-w-md rounded-2xl">
-                            <DialogHeader>
-                                <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Registrar Vacinação</DialogTitle>
-                                <DialogDescription class="text-xs">
-                                    Registrar aplicação de dose na carteira de <strong>{{ pet.nome }}</strong>.
-                                </DialogDescription>
-                            </DialogHeader>
+                            <!-- ETAPA 1: Formulário -->
+                            <div v-if="!isConfirmVacinaStep">
+                                <DialogHeader>
+                                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF]">Registrar Vacinação</DialogTitle>
+                                    <DialogDescription class="text-xs">
+                                        Registrar aplicação de dose na carteira de <strong>{{ pet.nome }}</strong>.
+                                    </DialogDescription>
+                                </DialogHeader>
 
-                            <form @submit.prevent="submitVacina" class="space-y-3.5 py-2">
-                                <div class="space-y-1">
-                                    <Label class="text-xs font-semibold">Vacina Aplicada *</Label>
-                                    <select v-model="vacinaForm.vacina_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
-                                        <option disabled value="">Selecione a vacina</option>
-                                        <option v-for="v in vacinas" :key="v.id" :value="v.id">{{ v.descricao }}</option>
-                                    </select>
+                                <form @submit.prevent="requestSubmitVacina" class="space-y-3.5 py-2">
+                                    <div class="space-y-1">
+                                        <Label class="text-xs font-semibold">Vacina Aplicada *</Label>
+                                        <select v-model="vacinaForm.vacina_id" required class="w-full text-xs bg-background border border-border rounded-xl p-2.5 focus:outline-none focus:ring-1 focus:ring-[#36A69A]">
+                                            <option disabled value="">Selecione a vacina</option>
+                                            <option v-for="v in vacinas" :key="v.id" :value="v.id">{{ v.descricao }}</option>
+                                        </select>
+                                        <span v-if="vacinaForm.errors.vacina_id" class="text-[11px] text-destructive font-medium">{{ vacinaForm.errors.vacina_id }}</span>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="space-y-1">
+                                            <Label class="text-xs font-semibold">Data da Aplicação *</Label>
+                                            <Input type="date" v-model="vacinaForm.data_aplicacao" required class="text-xs rounded-xl" />
+                                            <span v-if="vacinaForm.errors.data" class="text-[11px] text-destructive font-medium">{{ vacinaForm.errors.data }}</span>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <Label class="text-xs font-semibold">Validade / Próximo Reforço</Label>
+                                            <Input type="date" v-model="vacinaForm.validade" class="text-xs rounded-xl" />
+                                            <span v-if="vacinaForm.errors.validade" class="text-[11px] text-destructive font-medium">{{ vacinaForm.errors.validade }}</span>
+                                        </div>
+                                    </div>
+
+                                    <DialogFooter class="pt-3">
+                                        <Button type="button" variant="outline" @click="isAddVacinaOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                                        <Button type="submit" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs font-bold rounded-xl">
+                                            Registrar Vacina
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </div>
+
+                            <!-- ETAPA 2: Confirmação -->
+                            <div v-else class="py-2 space-y-4">
+                                <DialogHeader>
+                                    <DialogTitle class="text-[#176B87] dark:text-[#A8DCCF] flex items-center gap-2">
+                                        <CheckCircle2 class="h-5 w-5 text-[#36A69A]" />
+                                        Confirmar Aplicação de Vacina
+                                    </DialogTitle>
+                                    <DialogDescription class="text-xs">
+                                        Confirma o registro desta vacina na carteira de <strong>{{ pet.nome }}</strong>?
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div class="bg-muted/40 p-3.5 rounded-xl border border-border/70 space-y-2 text-xs">
+                                    <div>
+                                        <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Vacina:</span>
+                                        <strong class="text-foreground">{{ selectedVacinaNome }}</strong>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Data de Aplicação:</span>
+                                            <strong>{{ vacinaForm.data_aplicacao }}</strong>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Validade / Reforço:</span>
+                                            <strong>{{ vacinaForm.validade || 'Sem prazo definido' }}</strong>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div class="space-y-1">
-                                        <Label class="text-xs font-semibold">Data da Aplicação *</Label>
-                                        <Input type="date" v-model="vacinaForm.data" required class="text-xs rounded-xl" />
-                                    </div>
-                                    <div class="space-y-1">
-                                        <Label class="text-xs font-semibold">Validade / Próximo Reforço</Label>
-                                        <Input type="date" v-model="vacinaForm.validade" class="text-xs rounded-xl" />
-                                    </div>
-                                </div>
-
-                                <DialogFooter class="pt-3">
-                                    <Button type="button" variant="outline" @click="isAddVacinaOpen = false" class="text-xs rounded-xl">Cancelar</Button>
-                                    <Button type="submit" :disabled="vacinaForm.processing" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs font-bold rounded-xl">
-                                        Salvar Vacinação
+                                <DialogFooter class="pt-2">
+                                    <Button type="button" variant="outline" @click="isConfirmVacinaStep = false" :disabled="vacinaForm.processing" class="text-xs rounded-xl">
+                                        Voltar / Editar
+                                    </Button>
+                                    <Button @click="executeSubmitVacina" :disabled="vacinaForm.processing" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs rounded-xl font-bold">
+                                        {{ vacinaForm.processing ? 'Gravando no Prontuário...' : 'Sim, Gravar Vacina' }}
                                     </Button>
                                 </DialogFooter>
-                            </form>
+                            </div>
                         </DialogContent>
                     </Dialog>
 
@@ -311,10 +527,6 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                                     Histórico cronológico de consultas, exames, procedimentos e cirurgias realizadas.
                                 </CardDescription>
                             </div>
-                            <Button size="sm" @click="isAddServicoOpen = true" class="bg-[#36A69A] hover:bg-[#2c8d82] text-white text-xs h-7 rounded-xl gap-1 no-print print:hidden">
-                                <Plus class="h-3 w-3" />
-                                <span>Adicionar</span>
-                            </Button>
                         </CardHeader>
 
                         <CardContent class="p-5">
@@ -332,7 +544,7 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                                                     <Clock class="h-3 w-3 print:hidden" />
                                                     Data: {{ reg.data }}
                                                 </span>
-                                                <Button @click="deleteServico(reg.id)" variant="ghost" size="sm" class="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 rounded-md no-print print:hidden">
+                                                <Button @click="requestDeleteServico(reg.id)" variant="ghost" size="sm" class="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 rounded-md no-print print:hidden">
                                                     <Trash2 class="h-3 w-3" />
                                                 </Button>
                                             </div>
@@ -369,10 +581,6 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                                 </CardTitle>
                                 <CardDescription class="text-xs print:text-gray-600">Doses aplicadas e prazos de validade</CardDescription>
                             </div>
-                            <Button size="sm" @click="isAddVacinaOpen = true" class="bg-[#176B87] hover:bg-[#125368] text-white text-xs h-7 rounded-xl gap-1 no-print print:hidden">
-                                <Plus class="h-3 w-3" />
-                                <span>Aplicar</span>
-                            </Button>
                         </CardHeader>
 
                         <CardContent class="p-4 space-y-3">
@@ -383,7 +591,7 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                                         <span :class="isValida(vac.validade) ? 'bg-emerald-500/15 text-emerald-600 print:border print:border-emerald-300' : 'bg-destructive/15 text-destructive print:border print:border-red-300'" class="text-[9px] font-bold px-1.5 py-0.5 rounded">
                                             {{ isValida(vac.validade) ? 'Em dia' : 'Vencida' }}
                                         </span>
-                                        <Button @click="deleteVacina(vac.id)" variant="ghost" size="sm" class="h-5 w-5 p-0 text-destructive hover:bg-destructive/10 rounded-md no-print print:hidden">
+                                        <Button @click="requestDeleteVacina(vac.id)" variant="ghost" size="sm" class="h-5 w-5 p-0 text-destructive hover:bg-destructive/10 rounded-md no-print print:hidden">
                                             <Trash2 class="h-2.5 w-2.5" />
                                         </Button>
                                     </div>
@@ -402,7 +610,7 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                 </div>
             </div>
 
-            <!-- Rodapé Exclusivo para Impressão / PDF com Assinatura do Veterinário -->
+            <!-- Rodapé Exclusivo para Impressão -->
             <div class="hidden print:block mt-10 pt-4 border-t border-gray-300">
                 <div class="flex justify-between items-end text-xs text-gray-600">
                     <div>
@@ -417,41 +625,47 @@ const dataEmissao = new Date().toLocaleDateString('pt-BR', {
                 </div>
             </div>
         </div>
+
+        <!-- Pop-up Exclusão Atendimento -->
+        <Dialog v-model:open="isDeleteServicoOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-destructive flex items-center gap-2">
+                        <AlertCircle class="h-5 w-5" />
+                        Remover Atendimento
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Deseja realmente remover este registro de atendimento clínico do prontuário?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isDeleteServicoOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                    <Button @click="confirmDeleteServico" :disabled="isDeletingServico" class="bg-destructive hover:bg-destructive/90 text-white text-xs rounded-xl font-bold">
+                        {{ isDeletingServico ? 'Removendo...' : 'Sim, Remover' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Pop-up Exclusão Vacina -->
+        <Dialog v-model:open="isDeleteVacinaOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-destructive flex items-center gap-2">
+                        <AlertCircle class="h-5 w-5" />
+                        Remover Vacinação
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Deseja realmente excluir este registro de dose aplicada da carteira de vacinas?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isDeleteVacinaOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                    <Button @click="confirmDeleteVacina" :disabled="isDeletingVacina" class="bg-destructive hover:bg-destructive/90 text-white text-xs rounded-xl font-bold">
+                        {{ isDeletingVacina ? 'Removendo...' : 'Sim, Remover' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>
-
-<style>
-@media print {
-    /* Oculta tudo que é navegação, sidebar e botões interativos */
-    aside,
-    header,
-    nav,
-    .no-print,
-    [data-sidebar="sidebar"],
-    [data-sidebar="header"],
-    [data-sidebar="trigger"],
-    button:not(.allow-print) {
-        display: none !important;
-    }
-
-    body {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-
-    /* Expande para ocupar toda a página sem cortes laterais */
-    main, [data-sidebar="content"], .flex-1 {
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    /* Quebra de página suave caso haja muitos registros */
-    .print-break-inside-avoid {
-        break-inside: avoid;
-    }
-}
-</style>

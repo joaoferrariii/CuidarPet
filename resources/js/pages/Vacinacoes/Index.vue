@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem, PaginatedData, Vacinacao } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Syringe, Trash2 } from 'lucide-vue-next';
+import { AlertCircle, Plus, Syringe, Trash2 } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 defineProps<{
     vacinacoes: PaginatedData<Vacinacao>;
@@ -15,15 +24,64 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Vacinações', href: '/vacinacoes' },
 ];
 
-function deleteVacinacao(id: number) {
-    if (confirm('Deseja realmente excluir este registro de vacinação?')) {
-        router.delete(`/vacinacoes/${id}`);
-    }
+const isDeleteOpen = ref(false);
+const isDeleting = ref(false);
+const deleteTarget = ref<{ id: number; nomeVacina: string; nomePet: string } | null>(null);
+
+function requestDeleteVacinacao(id: number, nomeVacina: string, nomePet: string) {
+    deleteTarget.value = { id, nomeVacina, nomePet };
+    isDeleteOpen.value = true;
+}
+
+function confirmDeleteVacinacao() {
+    if (!deleteTarget.value) return;
+    isDeleting.value = true;
+    router.delete(`/vacinacoes/${deleteTarget.value.id}`, {
+        onSuccess: () => {
+            isDeleteOpen.value = false;
+            deleteTarget.value = null;
+            isDeleting.value = false;
+        },
+        onError: () => {
+            isDeleting.value = false;
+        },
+    });
+}
+
+function goToPage(page: number) {
+    router.get('/vacinacoes', { page }, { preserveState: true, replace: true });
 }
 
 function isValida(validadeDate: string | null): boolean {
     if (!validadeDate) return true;
-    return new Date(validadeDate) >= new Date();
+
+    let targetDate: Date;
+    if (validadeDate.includes('/')) {
+        const parts = validadeDate.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            targetDate = new Date(year, month, day, 23, 59, 59, 999);
+        } else {
+            targetDate = new Date(validadeDate);
+        }
+    } else if (validadeDate.includes('-')) {
+        const parts = validadeDate.split('-');
+        if (parts.length === 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parseInt(parts[2], 10);
+            targetDate = new Date(year, month, day, 23, 59, 59, 999);
+        } else {
+            targetDate = new Date(validadeDate);
+        }
+    } else {
+        targetDate = new Date(validadeDate);
+    }
+
+    if (isNaN(targetDate.getTime())) return false;
+    return targetDate >= new Date();
 }
 </script>
 
@@ -96,7 +154,7 @@ function isValida(validadeDate: string | null): boolean {
                                         </span>
                                     </td>
                                     <td class="py-3.5 px-5 text-right">
-                                        <Button @click="deleteVacinacao(vac.id)" variant="ghost" size="sm" class="text-xs h-7 text-destructive hover:bg-destructive/10 rounded-lg p-1.5">
+                                        <Button @click="requestDeleteVacinacao(vac.id, vac.vacina?.descricao || 'Vacina', vac.pet?.nome || 'Pet')" variant="ghost" size="sm" class="text-xs h-7 text-destructive hover:bg-destructive/10 rounded-lg p-1.5">
                                             <Trash2 class="h-3.5 w-3.5" />
                                         </Button>
                                     </td>
@@ -109,8 +167,56 @@ function isValida(validadeDate: string | null): boolean {
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Paginação -->
+                    <div v-if="vacinacoes.last_page > 1" class="flex items-center justify-between px-5 py-3 border-t border-border/60 bg-muted/10">
+                        <span class="text-[11px] text-muted-foreground">
+                            Página {{ vacinacoes.current_page }} de {{ vacinacoes.last_page }} ({{ vacinacoes.total }} registros)
+                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="text-xs h-8 rounded-lg"
+                                :disabled="vacinacoes.current_page <= 1"
+                                @click="goToPage(vacinacoes.current_page - 1)"
+                            >
+                                Anterior
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                class="text-xs h-8 rounded-lg"
+                                :disabled="vacinacoes.current_page >= vacinacoes.last_page"
+                                @click="goToPage(vacinacoes.current_page + 1)"
+                            >
+                                Próxima
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Pop-up de Confirmação de Exclusão -->
+        <Dialog v-model:open="isDeleteOpen">
+            <DialogContent class="sm:max-w-sm rounded-2xl">
+                <DialogHeader>
+                    <DialogTitle class="text-destructive flex items-center gap-2">
+                        <AlertCircle class="h-5 w-5" />
+                        Confirmar Exclusão de Vacina
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Deseja realmente remover o registro da vacina <strong>"{{ deleteTarget?.nomeVacina }}"</strong> do paciente <strong>"{{ deleteTarget?.nomePet }}"</strong>?
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="pt-3">
+                    <Button type="button" variant="outline" @click="isDeleteOpen = false" class="text-xs rounded-xl">Cancelar</Button>
+                    <Button @click="confirmDeleteVacinacao" :disabled="isDeleting" class="bg-destructive hover:bg-destructive/90 text-white text-xs rounded-xl font-bold">
+                        {{ isDeleting ? 'Removendo...' : 'Sim, Excluir' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AppLayout>
 </template>
