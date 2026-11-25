@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\VacinacaoRequest;
 use App\Models\Pet;
 use App\Models\Vacina;
 use App\Models\Vacinacao;
@@ -43,22 +44,11 @@ class VacinacaoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(VacinacaoRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'pet_id' => ['required', 'exists:pets,id'],
-            'vacina_id' => ['required', 'exists:vacinas,id'],
-            'data' => ['required', 'date'],
-            'validade' => ['nullable', 'date', 'after_or_equal:data'],
-        ], [
-            'pet_id.required' => 'Selecione o pet.',
-            'vacina_id.required' => 'Selecione a vacina.',
-            'data.required' => 'Informe a data de aplicação.',
-            'validade.after_or_equal' => 'A validade deve ser uma data posterior ou igual à aplicação.',
-        ]);
-
-        $vacinacao = Vacinacao::create($validated);
-
+        $vacinacao = Vacinacao::create($request->validated());
+        
+        // dd($vacinacao);
         return redirect()->route('pets.show', $vacinacao->pet_id)
             ->with('success', 'Vacinação registrada com sucesso!');
     }
@@ -68,7 +58,6 @@ class VacinacaoController extends Controller
      */
     public function destroy(Vacinacao $vacinacao): RedirectResponse
     {
-        $petId = $vacinacao->pet_id;
         $vacinacao->delete();
 
         return redirect()->back()

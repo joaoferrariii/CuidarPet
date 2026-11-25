@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Cliente extends Model
 {
@@ -32,5 +33,20 @@ class Cliente extends Model
               ->orWhere('cpf', 'like', "%{$term}%")
               ->orWhere('email', 'like', "%{$term}%");
         });
+    }
+
+    protected function cpf(): Attribute
+    {
+        return Attribute::make(
+            get: function (?string $value) {
+                if (!$value) return '';
+                $digits = preg_replace('/\D/', '', $value);
+                if (strlen($digits) === 11) {
+                    return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $digits);
+                }
+                return $value;
+            },
+            set: fn (?string $value) => $value ? preg_replace('/\D/', '', $value) : null
+        );
     }
 }

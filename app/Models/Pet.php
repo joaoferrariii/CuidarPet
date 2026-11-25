@@ -30,7 +30,7 @@ class Pet extends Model
     protected function casts(): array
     {
         return [
-            'data_nascimento' => 'date',
+            'data_nascimento' => 'date:d/m/Y',
             'castrado' => 'boolean'
         ];
     }
